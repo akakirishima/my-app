@@ -1,0 +1,13 @@
+# node
+frontend/node_modules
+
+# python
+backend/__pycache__/
+backend/.pytest_cache/
+
+# editor
+.vscode/
+.idea/
+
+# docker
+**/.venv
