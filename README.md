@@ -176,3 +176,60 @@ git push origin <ブランチ名>
 	•	ローカルに Node / Python を入れない（環境統一のため）
 	•	README のコマンドは 1行ずつコピペ
 	•	わからなければすぐ相談！
+
+⸻
+
+10) Git ブランチ運用（初心者向け）
+
+基本ポリシー
+	•	main ブランチを常に最新・安定版としてキープ。
+	•	作業は必ず 短命ブランチ（feat/…, fix/… など）を切って行い、Pull Request (PR) で main に取り込む。
+	•	マージ方式は Squash merge が基本 → main の履歴が 1 機能 = 1 コミットで読みやすい。
+	•	リリースの区切りは タグ（例 v0.1.0）。
+
+ブランチ名ルール
+
+種類	例	説明
+新機能	feat/add-login	追加する機能を動詞+名詞で簡潔に
+バグ修正	fix/api-timeout	不具合を直す
+リファクタ	refactor/button-component	構造整理・仕様変更なし
+ドキュメント	docs/update-readme	README など文書のみ
+緊急修正	hotfix/env-vars	本番系の致命的バグ対応
+
+全て 半角英数字+ハイフン。20～30文字以内が目安。
+
+1 日の流れ（チートシート）
+
+# 0) main を最新化
+git checkout main && git pull
+
+# 1) ブランチ作成
+git switch -c feat/add-login
+
+# 2) 作業 → こまめにコミット
+#   (例) git commit -m "feat(frontend): add login UI"
+
+# 3) リモートへプッシュ & PR 作成
+git push -u origin feat/add-login
+#   → GitHub が PR 作成リンクを表示するのでブラウザで PR
+
+PR のポイント
+	•	小さく送る（レビュー 30 分以内が目安）
+	•	PR タイトル = main に残るコミットメッセージ
+	•	本文に 動作確認手順・スクショ があると親切
+	•	1 承認でマージ。GitHub で main にブランチ保護ルール設定済み。
+
+マージ後の掃除
+
+git switch main && git pull
+# ローカル削除
+git branch -d feat/add-login
+# リモート削除 (UI か  CLI)
+git push origin --delete feat/add-login
+
+よくあるトラブル
+	•	コンフリクト → 毎朝 git fetch origin && git rebase origin/main で早めに解決。
+	•	巨大 PR → 機能を UI / API / テスト などに分割して複数 PR に。
+	•	main へ直 push → ブランチ保護が弾くので慌てず PR を作る。
+
+⸻
