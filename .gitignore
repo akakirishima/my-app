@@ -11,3 +11,6 @@ backend/.pytest_cache/
 
 # docker
 **/.venv
+.DS_Store
+backend/app/__pycache__/
+frontend/node_modules/ # 念のため
