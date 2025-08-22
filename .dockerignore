@@ -1,0 +1,16 @@
+# ホストの依存関係を無視（Docker側で別途インストール）
+frontend/node_modules
+backend/__pycache__
+
+# Pythonキャッシュ
+**/.pytest_cache
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/*.pyd
+
+# その他の一般的な無視ファイル
+.DS_Store
+.git
+.gitignore
+README.md
