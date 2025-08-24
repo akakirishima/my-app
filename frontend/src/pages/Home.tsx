@@ -6,18 +6,24 @@ import MapWidget from '../features/map/MapWidget';
 import WeatherWidget from '../features/weather/WeatherWidget';
 import PackingListWidget from '../features/packing/PackingListWidget';
 
+
+
 export default function Home() {
   return (
-    <main className="min-h-screen bg-gray-100 flex flex-col gap-6 p-6">
+    <main className="min-h-screen bg-gray-100 flex flex-col gap-8 p-6 max-w-5xl mx-auto w-full">
       {/* ─── 上段：MAP ─── */}
       <section className="flex-1">
         <MapWidget />
       </section>
 
-      {/* ─── 下段：カード 2 枚 ─── */}
-      <section className="grid gap-6 md:grid-cols-2">
-        <WeatherWidget />
-        <PackingListWidget />
+      {/* ─── 下段：カード 2 枚（横並び固定） ─── */}
+      <section className="grid grid-cols-2 gap-8 items-stretch w-full">
+        <div className="aspect-square">
+          <WeatherWidget />
+        </div>
+        <div className="aspect-square">
+          <PackingListWidget />
+        </div>
       </section>
     </main>
   );

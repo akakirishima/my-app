@@ -1,13 +1,14 @@
+import React from "react";
+
+const DEFAULT_ITEMS = ["タオル", "水筒", "日焼け止め"] as const;
+
 export default function PackingListWidget() {
-  const items = ['タオル', '水筒', '日焼け止め']; // 仮データ
   return (
-    <div className="aspect-square rounded-xl bg-yellow-400/70 p-4 flex flex-col">
-      <h3 className="mb-2 text-center font-semibold">持ち物</h3>
-      <ul className="flex-1 flex flex-col gap-1 overflow-y-auto">
-        {items.map((item) => (
-          <li key={item} className="before:content-['•'] before:mr-1">
-            {item}
-          </li>
+    <div className="card card--glass hover-lift">
+      <h2 className="card__title">持ち物</h2>
+      <ul style={{ margin: 0, paddingLeft: 18 }}>
+        {DEFAULT_ITEMS.map((it) => (
+          <li key={it} style={{ marginBottom: 6 }}>{it}</li>
         ))}
       </ul>
     </div>
