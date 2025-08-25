@@ -1,15 +1,26 @@
+# backend/app/__init__.py
 from flask import Flask
 from flask_cors import CORS
-from .routes import api
 
-def create_app() -> Flask:
+def create_app():
     app = Flask(__name__)
     CORS(app)
-    app.register_blueprint(api)
+    from .routes import bp
+    app.register_blueprint(bp)
     return app
 
-def main():
-    create_app().run(host="0.0.0.0", port=5000, debug=True)
+# flask run 用エントリ
+app = create_app()
+# backend/app/__init__.py
+from flask import Flask
+from flask_cors import CORS
 
-if __name__ == "__main__":
-    main()
+def create_app():
+  app = Flask(__name__)
+  CORS(app)
+  from .routes import bp
+  app.register_blueprint(bp)
+  return app
+
+# flask run 用エントリ
+app = create_app()
