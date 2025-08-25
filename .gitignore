@@ -14,3 +14,4 @@ backend/.pytest_cache/
 .DS_Store
 backend/app/__pycache__/
 frontend/node_modules/ # 念のため
+.env

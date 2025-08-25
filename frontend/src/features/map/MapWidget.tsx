@@ -5,11 +5,15 @@ import {
   Marker,
   Circle,
   useMap,
+  Polyline,
 } from 'react-leaflet';
 import L from 'leaflet';
 import { useEffect, useState } from 'react';
 import type { LatLngExpression } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+
+type WalkRoute = { km: number; color: string; coords: [number, number][] };
+const BACKEND_BASE = (import.meta as any).env?.VITE_BACKEND_URL || 'http://localhost:5001';
 
 const FALLBACK_CENTER: LatLngExpression = [31.910, 131.423];
 const INITIAL_ZOOM = 15;           // やや寄り気味
@@ -34,7 +38,7 @@ function useLiveLocation() {
   return pos;
 }
 
-// ▶︎ map を追従移動させる小コンポーネント
+// ▶︎ map を追従移動させる小コンポーネント 
 function FollowMap({ pos }: { pos: LatLng }) {
   const map = useMap();
   useEffect(() => {
@@ -57,6 +61,28 @@ const blueMarker = new L.Icon({
 export default function MapWidget(): JSX.Element {
   const pos = useLiveLocation();
 
+  const [routes, setRoutes] = useState<WalkRoute[]>([]);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!pos) return;
+    const ctrl = new AbortController();
+    const qs = new URLSearchParams({ lat: String(pos.lat), lon: String(pos.lng) });
+    fetch(`${BACKEND_BASE}/api/walk_routes?${qs.toString()}`, { signal: ctrl.signal })
+      .then(async (r) => {
+        if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+        return r.json();
+      })
+      .then((json) => {
+        setRoutes(Array.isArray(json?.routes) ? json.routes : []);
+        setErr(null);
+      })
+      .catch((e) => {
+        if (e?.name !== 'AbortError') setErr(e?.message || 'fetch failed');
+      });
+    return () => ctrl.abort();
+  }, [pos?.lat, pos?.lng]);
+
   return (
     <MapContainer
       center={pos ? [pos.lat, pos.lng] : FALLBACK_CENTER}
@@ -69,6 +95,15 @@ export default function MapWidget(): JSX.Element {
         attribution="© OpenStreetMap contributors"
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
+
+      {/* 散歩コース（3/5/7km）を色分け描画 */}
+      {routes.map((r) => (
+        <Polyline
+          key={r.km}
+          positions={r.coords as unknown as L.LatLngExpression[]}
+          pathOptions={{ color: r.color, weight: 5, opacity: 0.9 }}
+        />
+      ))}
 
       {/* 位置が取れたらマーカー + 円 + map 追従 */}
       {pos && (
