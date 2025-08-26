@@ -88,7 +88,7 @@ export default function MapWidget(): JSX.Element {
       center={pos ? [pos.lat, pos.lng] : FALLBACK_CENTER}
       zoom={INITIAL_ZOOM}
       scrollWheelZoom={false}
-      style={{ height: '40vh', width: '100%' }}
+      style={{ height: '60vh', width: '100%' }}
       className="rounded-xl shadow"
     >
       <TileLayer

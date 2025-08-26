@@ -1,156 +1,122 @@
-import React, { useMemo } from "react";
-import { useGeolocation } from "../weather/hooks/useGeolocation";
-import { useOpenMeteoCurrent } from "../weather/hooks/useOpenMeteo";
+import { useEffect, useMemo, useState } from "react";
 
-// 位置情報がNGのときのフォールバック（宮崎）
-const FALLBACK = { lat: 31.91, lon: 131.42, name: "宮崎" } as const;
+type Coords = { lat: number; lon: number };
+const FALLBACK: Coords = { lat: 31.91, lon: 131.42 };
 
-// ラベル→アイコン画像（/public 配下）
-// 画像が無いものは null（絵文字でフォールバック）
-export type ItemLabel =
-  | "飲み物"
-  | "日焼け止め"
-  | "帽子"
-  | "日傘"
-  | "サングラス";
-
-const ICON_BY_LABEL: Record<ItemLabel, string | null> = {
-  "飲み物": "/packing/bottle.png",
-  "日焼け止め": "/packing/hiyakedome.png",
-  "帽子": "/packing/hat.png",
-  "日傘": "/packing/sunkasa.png",
-  "サングラス": null, // 画像が無いので絵文字で代用
-};
-
-// 雨系をざっくり判定（Open‑Meteo の weathercode で使用）
-const RAINY_CODES = [61, 63, 65, 80, 81, 82];
-function isRainy(code: number | null): boolean {
-  if (code == null) return false;
-  return RAINY_CODES.includes(code);
+// 天気分類
+type Kind = "clear" | "cloudy" | "rain" | "snow" | "thunder";
+function classify(code: number | null): Kind {
+  if (code == null) return "cloudy";
+  if ([0, 1, 2].includes(code)) return "clear";
+  if ([3, 45, 48].includes(code)) return "cloudy";
+  if ([51, 53, 55, 61, 63, 65, 80, 81, 82].includes(code)) return "rain";
+  if ([71, 73, 75, 85, 86].includes(code)) return "snow";
+  if ([95, 96, 99].includes(code)) return "thunder";
+  return "cloudy";
 }
 
-// 必須 / 推奨 を分けて返す
-type PackingBuckets = { required: ItemLabel[]; recommended: ItemLabel[] };
+type Item = { key: string; label: string; img?: string; emoji?: string };
 
-// Open‑Meteo weathercode の簡易カテゴリ分け
-function isSunny(code: number | null): boolean {
-  if (code == null) return false;
-  return code === 0 || code === 1; // 快晴/晴れ
-}
-function isCloudyOrLightRain(code: number | null): boolean {
-  if (code == null) return false;
-  // 曇り系・霧・弱い雨・にわか雨
-  const cloudy = [2, 3, 45, 48, 51, 53, 55, 61, 63, 65, 80, 81, 82];
-  return cloudy.includes(code);
-}
+export default function PackingListWidget(): JSX.Element {
+  const [coords, setCoords] = useState<Coords>(FALLBACK);
+  const [code, setCode] = useState<number | null>(null);
 
-function computePacking(
-  tempC: number | null,
-  windMps: number | null,
-  code: number | null
-): PackingBuckets {
-  const required = new Set<ItemLabel>();
-  const recommended = new Set<ItemLabel>();
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) =>
+        setCoords({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
+      () => {},
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 3000 }
+    );
+  }, []);
 
-  // 気温: 28℃以上は飲み物を必須、25〜27.9℃は推奨
-  if (tempC != null) {
-    if (tempC >= 28) required.add("飲み物");
-    else if (tempC >= 25) recommended.add("飲み物");
-  }
+  useEffect(() => {
+    const ac = new AbortController();
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lon}&current_weather=true&timezone=Asia%2FTokyo`;
+    (async () => {
+      try {
+        const r = await fetch(url, { signal: ac.signal });
+        if (!r.ok) throw new Error("weather fetch failed");
+        const j = await r.json();
+        setCode(typeof j?.current_weather?.weathercode === "number" ? j.current_weather.weathercode : null);
+      } catch {}
+    })();
+    return () => ac.abort();
+  }, [coords.lat, coords.lon]);
 
-  // 晴れ: 日焼け止めは必須、サングラス/帽子は推奨
-  if (isSunny(code)) {
-    required.add("日焼け止め");
-    recommended.add("サングラス");
-    recommended.add("帽子");
-  }
+  const hour = new Date().getHours();
+  const isDay = hour >= 6 && hour < 18;
+  const kind = classify(code);
 
-  // 雨: 日傘（雨具）を必須 / 曇りや弱い雨は推奨
-  if (isRainy(code)) {
-    required.add("日傘");
-  } else if (isCloudyOrLightRain(code)) {
-    recommended.add("日傘");
-  }
+  const { required, recommended } = useMemo(() => {
+    const req: Item[] = [];
+    const rec: Item[] = [];
 
-  // 風が強い: 帽子を推奨（8m/s 以上の目安）
-  if (windMps != null && windMps >= 8) {
-    recommended.add("帽子");
-  }
+    // 必須
+    if (isDay) req.push({ key: "sunblock", label: "日焼け止め", img: "/packing/hiyakedome.png" });
+    if (kind === "rain" || kind === "thunder") {
+      req.push({ key: "umbrella", label: "傘", img: "/packing/kasa.png" });
+    }
 
-  // 推奨側から必須に入っているものを除外
-  const req = Array.from(required);
-  const rec = Array.from(recommended).filter((i) => !required.has(i));
-  return { required: req, recommended: rec };
-}
+    // おすすめ
+    rec.push({ key: "drink", label: "飲み物", img: "/packing/bottle.png" });
+    if (isDay) {
+      rec.push({ key: "hat", label: "帽子", img: "/packing/hat.png" });
+      // 日差し強そうな時は日傘も
+      if (kind === "clear" || kind === "cloudy") {
+        rec.push({ key: "parasol", label: "日傘", img: "/packing/sunkasa.png" });
+      }
+      // サングラス画像が無いので絵文字で
+      rec.push({ key: "sunglasses", label: "サングラス", emoji: "🕶️" });
+    }
 
-export default function PackingListWidget() {
-  // 天気情報（現在地ベース）を取得
-  const { coords } = useGeolocation(FALLBACK);
-  const { temperature, windspeed, weathercode, loading } = useOpenMeteoCurrent(coords);
+    return { required: req, recommended: rec };
+  }, [isDay, kind]);
 
-  const { required, recommended } = useMemo(
-    () => computePacking(temperature, windspeed, weathercode),
-    [temperature, windspeed, weathercode]
+  const Row = ({ item }: { item: Item }) => (
+    <div className="grid grid-cols-[auto_1fr] items-center gap-4">
+      {item.img ? (
+        <img
+          src={item.img}
+          alt={item.label}
+          className="w-12 h-12 object-contain rounded-md bg-white/60 ring-1 ring-black/5"
+          draggable={false}
+        />
+      ) : (
+        <span className="text-3xl select-none">{item.emoji}</span>
+      )}
+      <div className="text-lg text-slate-700">{item.label}</div>
+    </div>
   );
 
   return (
-    <div className="card card--glass hover-lift">
-      <h2 className="card__title">おすすめの持ち物</h2>
-
-      {loading ? (
-        <p className="small m-0">おすすめ計算中…</p>
-      ) : (
-        <>
-          {required.length > 0 && (
-            <section className="mt-1">
-              <h3 className="text-sm font-semibold text-rose-600 mb-2 flex items-center gap-2">
-                <span className="inline-block px-2 py-0.5 rounded-full bg-rose-50 border border-rose-200">必須</span>
-                <span className="sr-only">必須アイテム</span>
-              </h3>
-              <ul className="m-0 p-0 list-none grid grid-cols-2 gap-x-8 gap-y-4">
-                {required.map((it) => {
-                  const icon = ICON_BY_LABEL[it];
-                  return (
-                    <li key={`req-${it}`} className="flex items-center gap-4">
-                      {icon ? (
-                        <img src={icon} alt={it} className="w-12 h-12 object-contain select-none rounded-md" />
-                      ) : (
-                        <span className="text-4xl leading-none" aria-hidden>🕶️</span>
-                      )}
-                      <span className="text-sm text-slate-700 font-medium">{it}</span>
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
-          )}
-
-          {recommended.length > 0 && (
-            <section className="mt-6">
-              <h3 className="text-sm font-semibold text-slate-500 mb-2">おすすめ</h3>
-              <ul className="m-0 p-0 list-none grid grid-cols-2 gap-x-8 gap-y-4">
-                {recommended.map((it) => {
-                  const icon = ICON_BY_LABEL[it];
-                  return (
-                    <li key={`rec-${it}`} className="flex items-center gap-4">
-                      {icon ? (
-                        <img src={icon} alt={it} className="w-12 h-12 object-contain select-none rounded-md" />
-                      ) : (
-                        <span className="text-4xl leading-none" aria-hidden>🕶️</span>
-                      )}
-                      <span className="text-sm text-slate-600">{it}</span>
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
-          )}
-
-          {required.length === 0 && recommended.length === 0 && (
-            <p className="small m-0">いまの天気では追加のおすすめはありません</p>
-          )}
-        </>
+    <div className="space-y-6">
+      {/* 必須（1件以上あるときだけ表示） */}
+      {required.length > 0 && (
+        <div>
+          <div className="inline-flex items-center gap-2 mb-3">
+            <span className="text-sm font-medium px-2 py-0.5 rounded-full bg-red-50 text-red-600 ring-1 ring-red-100">
+              必須
+            </span>
+          </div>
+          <div className="grid grid-cols-2 gap-x-10 gap-y-6">
+            {required.map((i) => (
+              <Row key={i.key} item={i} />
+            ))}
+          </div>
+        </div>
       )}
+
+      {/* おすすめ */}
+      <div>
+        <div className="text-slate-500 text-sm mb-3">おすすめ</div>
+        <div className="grid grid-cols-2 gap-x-10 gap-y-6">
+          {recommended.map((i) => (
+            <Row key={i.key} item={i} />
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
