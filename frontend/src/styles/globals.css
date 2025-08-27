@@ -131,3 +131,39 @@
   98%            { background: rgba(255,255,255,.45); }
   99%            { background: rgba(255,255,255,0); }
 }
+/* ===== Cloud layer (for cards & panels) ===== */
+.card--with-clouds { position: relative; overflow: hidden; }
+.card--with-clouds > * { position: relative; z-index: 1; }
+
+.clouds {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;   /* マップやボタンの操作を妨げない */
+  overflow: hidden;
+  z-index: 0;
+  filter: drop-shadow(0 8px 8px rgba(0,0,0,.04));
+}
+
+/* ふわっとした雲（3つの楕円を重ねて雲っぽく） */
+.clouds__item {
+  position: absolute;
+  top: var(--top);
+  left: -30%;
+  width: 160px;          /* 親サイズに依らない固定幅 */
+  height: 80px;
+  opacity: .55;
+  transform: scale(var(--s, 1));
+  animation: cloud-drift var(--d, 40s) linear infinite;
+  animation-delay: var(--delay, 0s);
+  background:
+    radial-gradient(ellipse at 30% 55%, rgba(255,255,255,.95), rgba(255,255,255,.55) 60%, rgba(255,255,255,0) 61%),
+    radial-gradient(ellipse at 60% 45%, rgba(255,255,255,.9), rgba(255,255,255,.5) 60%, rgba(255,255,255,0) 61%),
+    radial-gradient(ellipse at 45% 50%, rgba(255,255,255,1), rgba(255,255,255,.6) 60%, rgba(255,255,255,0) 61%);
+  filter: blur(.3px);
+  border-radius: 50px;
+}
+
+@keyframes cloud-drift {
+  from { transform: translateX(0)    scale(var(--s, 1)); }
+  to   { transform: translateX(170%) scale(var(--s, 1)); }
+}
